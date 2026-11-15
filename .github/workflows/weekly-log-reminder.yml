@@ -55,13 +55,21 @@ jobs:
           ISSUE_URL: ${{ steps.issue.outputs.url }}
         run: |
           if [ -z "$NTFY_TOPIC" ]; then
-            echo "NTFY_TOPIC secret is not set, so there is no phone to notify."
-            echo "Add the secret in Settings, then run this workflow again."
+            echo "NTFY_TOPIC is empty: no secret named NTFY_TOPIC reached this job, so nothing was sent."
+            echo "Add it under Settings > Secrets and variables > Actions > Secrets, then run again."
             exit 0
           fi
-          curl -fsS \
+
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
             -H "Title: Weekly GitHub log" \
             -H "Tags: memo" \
             -H "Click: $ISSUE_URL" \
             --data "This week: $COMMITS commit(s). Fill in your log: $ISSUE_URL" \
-            "https://ntfy.sh/$NTFY_TOPIC"
+            "https://ntfy.sh/$NTFY_TOPIC")
+
+          echo "ntfy answered with HTTP $STATUS"
+          echo "If that is 200, the push was accepted for delivery to topic '$NTFY_TOPIC'."
+          if [ "$STATUS" != "200" ]; then
+            echo "ntfy did not accept the message." >&2
+            exit 1
+          fi
